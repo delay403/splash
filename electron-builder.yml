@@ -1,0 +1,15 @@
+appId: com.qaq.splash
+productName: Splash
+directories:
+  output: dist
+  buildResources: electron/resources
+files:
+  - out/**/*
+  - package.json
+win:
+  target:
+    - nsis
+  icon: electron/resources/icon.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
