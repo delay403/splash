@@ -8,7 +8,7 @@ const saved = ref(false);
 const local = reactive({
   // 通用
   targetGame: "overwatch2",
-  intervalMs: 1500,
+  detectIntervalMs: 1500,
   deadConfirmFrames: 3,
   aliveConfirmFrames: 2,
   // 守望先锋 2
@@ -17,8 +17,9 @@ const local = reactive({
   grayscaleRatioThreshold: 0.7,
   centerWhiteThreshold: 0.05,
   // 无畏契约
-  bottomColorRatioDead: 0.05,
-  bottomColorRatioAlive: 0.12,
+  brightnessDeadThreshold: 0.18,
+  valorantSaturationThreshold: 0.12,
+  valorantGrayscaleThreshold: 0.80,
 });
 
 const gameOptions = [
@@ -42,15 +43,16 @@ function reset() {
   const game = local.targetGame;
   Object.assign(local, {
     targetGame: game,
-    intervalMs: 1500,
+    detectIntervalMs: 1500,
     deadConfirmFrames: 3,
     aliveConfirmFrames: 2,
     saturationDeadThreshold: 0.15,
     saturationAliveThreshold: 0.25,
     grayscaleRatioThreshold: 0.7,
     centerWhiteThreshold: 0.05,
-    bottomColorRatioDead: 0.05,
-    bottomColorRatioAlive: 0.12,
+    brightnessDeadThreshold: 0.18,
+    valorantSaturationThreshold: 0.12,
+    valorantGrayscaleThreshold: 0.80,
   });
 }
 </script>
@@ -65,19 +67,10 @@ function reset() {
       <div class="form-section">
         <h3 class="section-title">目标游戏</h3>
         <div class="game-selector">
-          <label
-            v-for="g in gameOptions"
-            :key="g.value"
-            class="game-option"
-            :class="{ selected: local.targetGame === g.value }"
-          >
-            <input
-              type="radio"
-              :value="g.value"
-              :checked="local.targetGame === g.value"
-              v-model="local.targetGame"
-              hidden
-            />
+          <label v-for="g in gameOptions" :key="g.value" class="game-option"
+            :class="{ selected: local.targetGame === g.value }">
+            <input type="radio" :value="g.value" :checked="local.targetGame === g.value" v-model="local.targetGame"
+              hidden />
             <span class="game-name">{{ g.label }}</span>
           </label>
         </div>
@@ -132,25 +125,34 @@ function reset() {
 
       <!-- 无畏契约 阈值 -->
       <div v-if="local.targetGame === 'valorant'" class="form-section">
-        <h3 class="section-title">底部技能图标检测</h3>
-        <p class="section-hint">分析屏幕底部 15% 区域的彩色像素占比。存活时该区域有技能图标，死亡后图标消失。</p>
+        <h3 class="section-title">死亡检测（三重验证）</h3>
+        <p class="section-hint">死亡时屏幕会变黑，必须同时满足以下三个条件才判定为死亡，避免游戏正常变暗时误判。</p>
 
         <div class="slider-group">
           <div class="slider-header">
-            <label>死亡彩色占比阈值</label>
-            <span class="slider-value">{{ local.bottomColorRatioDead.toFixed(2) }}</span>
+            <label>亮度阈值</label>
+            <span class="slider-value">{{ local.brightnessDeadThreshold.toFixed(2) }}</span>
           </div>
-          <input type="range" min="0.01" max="0.2" step="0.01" v-model.number="local.bottomColorRatioDead" />
-          <p class="slider-hint">底部区域彩色像素占比低于此值 → 技能图标消失 → 判定死亡</p>
+          <input type="range" min="0.05" max="0.4" step="0.01" v-model.number="local.brightnessDeadThreshold" />
+          <p class="slider-hint">全屏平均亮度低于此值 → 屏幕变黑。日志中 brightness 值需低于此阈值</p>
         </div>
 
         <div class="slider-group">
           <div class="slider-header">
-            <label>存活彩色占比阈值</label>
-            <span class="slider-value">{{ local.bottomColorRatioAlive.toFixed(2) }}</span>
+            <label>饱和度阈值</label>
+            <span class="slider-value">{{ local.valorantSaturationThreshold.toFixed(2) }}</span>
           </div>
-          <input type="range" min="0.05" max="0.5" step="0.01" v-model.number="local.bottomColorRatioAlive" />
-          <p class="slider-hint">底部区域彩色像素占比高于此值 → 技能图标存在 → 判定存活</p>
+          <input type="range" min="0.01" max="0.3" step="0.01" v-model.number="local.valorantSaturationThreshold" />
+          <p class="slider-hint">全屏平均饱和度低于此值 → 黑白画面。日志中 saturation 值需低于此阈值</p>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <label>灰度比例阈值</label>
+            <span class="slider-value">{{ local.valorantGrayscaleThreshold.toFixed(2) }}</span>
+          </div>
+          <input type="range" min="0.5" max="0.99" step="0.01" v-model.number="local.valorantGrayscaleThreshold" />
+          <p class="slider-hint">灰度像素占比高于此值 → 灰度画面。日志中 grayscale 值需高于此阈值</p>
         </div>
       </div>
 
@@ -179,9 +181,9 @@ function reset() {
         <div class="slider-group">
           <div class="slider-header">
             <label>检测间隔</label>
-            <span class="slider-value">{{ local.intervalMs }} ms</span>
+            <span class="slider-value">{{ local.detectIntervalMs }} ms</span>
           </div>
-          <input type="range" min="500" max="5000" step="100" v-model.number="local.intervalMs" />
+          <input type="range" min="500" max="5000" step="100" v-model.number="local.detectIntervalMs" />
           <p class="slider-hint">每隔多少毫秒截取一次屏幕进行分析</p>
         </div>
       </div>
@@ -330,12 +332,18 @@ input[type="range"] {
   background: #3b82f6;
   color: white;
 }
-.btn-primary:hover { background: #2563eb; }
+
+.btn-primary:hover {
+  background: #2563eb;
+}
 
 .btn-secondary {
   background: rgba(255, 255, 255, 0.08);
   color: #d1d5db;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
-.btn-secondary:hover { background: rgba(255, 255, 255, 0.12); }
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
 </style>

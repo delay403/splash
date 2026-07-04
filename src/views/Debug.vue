@@ -26,6 +26,7 @@ const metrics = computed(() => {
       label: "亮度",
       value: `${(store.debugData.brightness * 100).toFixed(1)}%`,
       bar: store.debugData.brightness,
+      primary: isValorant, // Valorant 使用亮度骤降检测
     },
     {
       label: "灰度占比",
@@ -43,13 +44,13 @@ const metrics = computed(() => {
       label: "底部饱和度",
       value: `${(store.debugData.bottom_saturation * 100).toFixed(1)}%`,
       bar: store.debugData.bottom_saturation,
-      primary: isValorant,
+      primary: false,
     },
     {
-      label: "底部彩色占比",
-      value: `${(store.debugData.bottom_colorful * 100).toFixed(1)}%`,
-      bar: store.debugData.bottom_colorful,
-      primary: isValorant,
+      label: "观战ID可见",
+      value: `${((store.debugData as any).spectator_id_visible || 0) * 100}%`,
+      bar: (store.debugData as any).spectator_id_visible || 0,
+      primary: isValorant, // Valorant 复活判定信号
     },
   ];
 });
@@ -69,24 +70,15 @@ const stateLabels: Record<string, string> = {
 
     <!-- 状态机可视化 -->
     <div class="state-viz">
-      <div
-        v-for="s in ['alive', 'dead', 'transitioning', 'nogame']"
-        :key="s"
-        class="state-node"
-        :class="{ current: store.gameState.toLowerCase() === s }"
-      >
+      <div v-for="s in ['alive', 'dead', 'transitioning', 'nogame']" :key="s" class="state-node"
+        :class="{ current: store.gameState.toLowerCase() === s }">
         <span class="state-name">{{ stateLabels[s] }}</span>
       </div>
     </div>
 
     <!-- 指标面板 -->
     <div class="metrics">
-      <div
-        v-for="m in metrics"
-        :key="m.label"
-        class="metric-card"
-        :class="{ primary: (m as any).primary }"
-      >
+      <div v-for="m in metrics" :key="m.label" class="metric-card" :class="{ primary: (m as any).primary }">
         <div class="metric-header">
           <span class="metric-label">
             {{ m.label }}
@@ -123,12 +115,12 @@ const stateLabels: Record<string, string> = {
         <div class="info-row">
           <span class="info-label">检测策略</span>
           <span class="info-value">
-            {{ store.config.targetGame === 'overwatch2' ? '全屏饱和度+灰度+白色文字' : '底部技能图标彩色占比' }}
+            {{ store.config.targetGame === 'overwatch2' ? '全屏饱和度+灰度+白色文字' : '屏幕亮度骤降+观战ID坐标检测' }}
           </span>
         </div>
         <div class="info-row">
           <span class="info-label">检测间隔</span>
-          <span class="info-value">{{ store.config.intervalMs }} ms</span>
+          <span class="info-value">{{ store.config.detectIntervalMs }} ms</span>
         </div>
         <div class="info-row">
           <span class="info-label">死亡确认帧</span>
@@ -249,10 +241,21 @@ const stateLabels: Record<string, string> = {
   font-family: 'Courier New', monospace;
 }
 
-.state-alive { color: #4ade80; }
-.state-dead { color: #f87171; }
-.state-transitioning { color: #fbbf24; }
-.state-nogame { color: #6b7280; }
+.state-alive {
+  color: #4ade80;
+}
+
+.state-dead {
+  color: #f87171;
+}
+
+.state-transitioning {
+  color: #fbbf24;
+}
+
+.state-nogame {
+  color: #6b7280;
+}
 
 .metric-bar {
   height: 4px;
@@ -306,6 +309,11 @@ const stateLabels: Record<string, string> = {
   color: #d1d5db;
 }
 
-.text-green { color: #4ade80; }
-.text-gray { color: #6b7280; }
+.text-green {
+  color: #4ade80;
+}
+
+.text-gray {
+  color: #6b7280;
+}
 </style>

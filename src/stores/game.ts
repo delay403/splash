@@ -13,15 +13,16 @@ export const useGameStore = defineStore("game", () => {
   const overlayVisible = ref(false);
   const config = ref<DetectionConfig>({
     targetGame: "overwatch2",
-    intervalMs: 1500,
+    detectIntervalMs: 1500,
     deadConfirmFrames: 3,
     aliveConfirmFrames: 2,
     saturationDeadThreshold: 0.15,
     saturationAliveThreshold: 0.25,
     grayscaleRatioThreshold: 0.7,
     centerWhiteThreshold: 0.05,
-    bottomColorRatioDead: 0.05,
-    bottomColorRatioAlive: 0.12,
+    brightnessDeadThreshold: 0.18,
+    valorantSaturationThreshold: 0.12,
+    valorantGrayscaleThreshold: 0.80,
   });
   const debugData = ref<AnalysisDebug>({
     saturation: 0,
@@ -30,12 +31,13 @@ export const useGameStore = defineStore("game", () => {
     center_white: 0,
     bottom_saturation: 0,
     bottom_colorful: 0,
+    spectator_id_visible: 0,
     game_state: "NoGame",
   });
   const douyinLiveUrl = ref("https://live.douyin.com/");
   const shortcuts = ref<ShortcutConfig>({
     toggleOverlay: "CommandOrControl+Shift+O",
-    toggleDetection: "CommandOrControl+Shift+D",
+    toggleDetect: "CommandOrControl+Shift+D",
   });
 
   // Actions

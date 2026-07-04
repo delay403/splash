@@ -12,8 +12,11 @@ import type { AppDatabase } from '../types/ipc'
 export function registerIpcHandlers(): void {
   // === 检测控制 ===
   ipcMain.handle(IPC_CHANNELS.DETECTION_START, async () => {
+    console.log('[ipc] DETECTION_START handler called')
     const config = getDetectionConfig()
+    console.log('[ipc] Detection config:', JSON.stringify(config))
     detectionLoop.start(config)
+    console.log('[ipc] DETECTION_START completed, isRunning:', detectionLoop.isRunning())
   })
 
   ipcMain.handle(IPC_CHANNELS.DETECTION_STOP, async () => {

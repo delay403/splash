@@ -26,9 +26,10 @@ class DetectionLoop {
     this.currentGame = config.targetGame
     this.strategy = getStrategy(config.targetGame)
     this.stateMachine = new StateMachine(this.strategy, config)
-    const interval = config.intervalMs
+    const interval = config.detectIntervalMs
 
-    console.log(`[detection] Started — game: ${config.targetGame}, interval: ${interval}ms`)
+    console.log(`[detection] Started - game: ${config.targetGame}, interval: ${interval}ms`)
+    console.log(`[detection] Config: brightnessDeadThreshold=${config.brightnessDeadThreshold}, saturationThreshold=${config.valorantSaturationThreshold}, grayscaleThreshold=${config.valorantGrayscaleThreshold}, deadConfirmFrames=${config.deadConfirmFrames}, aliveConfirmFrames=${config.aliveConfirmFrames}`)
     this.sendStatusEvent(true)
 
     this.timer = setInterval(() => {
@@ -78,7 +79,7 @@ class DetectionLoop {
         this.tick().catch((err) => {
           console.error('[detection] Tick error:', err)
         })
-      }, config.intervalMs)
+      }, config.detectIntervalMs)
     }
 
     // 持久化配置
@@ -95,30 +96,46 @@ class DetectionLoop {
     if (!this.stateMachine || !this.strategy) return
 
     try {
-      // 截取屏幕
+      // 截取屏幕（关键路径1）
       const image = await captureScreen()
+      console.log(`[detection] Screenshot captured`)
 
-      // 使用策略分析图像
+      // 使用策略分析图像（关键路径2）
       const result: AnalysisResult = this.strategy.analyze(image)
 
-      // 状态机处理
+      // 状态机处理（关键路径3）
+      const oldState = this.stateMachine.getCurrentState()
       const newState = this.stateMachine.processFrame(result)
 
-      // 状态变化时通知前端 + 控制悬浮窗
-      if (newState) {
-        this.sendStateEvent(newState, result)
-
+      // 记录死亡/复活判定
+      if (newState && newState !== oldState) {
         if (newState === 'Dead') {
-          showOverlay()
+          console.log(`[detection] DEAD DETECTED! brightness=${result.avgBrightness.toFixed(3)}, saturation=${result.avgSaturation.toFixed(3)}, grayscale=${result.grayscaleRatio.toFixed(3)}`)
+          console.log(`[detection]   -> Calling showOverlay()...`)
+        } else if (newState === 'Alive') {
+          console.log(`[detection] ALIVE DETECTED! brightness=${result.avgBrightness.toFixed(3)}, saturation=${result.avgSaturation.toFixed(3)}, grayscale=${result.grayscaleRatio.toFixed(3)}`)
+          console.log(`[detection]   -> Calling hideOverlay()...`)
+        }
+      }
+
+      // 状态变化时立即控制悬浮窗（关键路径4）
+      if (newState) {
+        const overlayStart = Date.now()
+        if (newState === 'Dead') {
+          console.log(`[detection] Calling showOverlay() at ${new Date().toISOString()}`)
+          showOverlay()  // 毫秒级响应
           this.sendOverlayVisibility(true)
         } else if (newState === 'Alive') {
           hideOverlay()
           this.sendOverlayVisibility(false)
         }
+        console.log(`[detection] Overlay operation took ${Date.now() - overlayStart}ms`)
+        // 状态变化时才发送事件（减少 IPC 开销）
+        this.sendStateEvent(newState, result)
       }
 
-      // 始终发送调试数据
-      this.sendDebugEvent(result, this.stateMachine.getCurrentState())
+      // 始终发送调试数据（但异步发送，不阻塞）
+      setImmediate(() => this.sendDebugEvent(result, this.stateMachine!.getCurrentState()))
     } catch (err) {
       console.error('[detection] Screenshot/analysis failed:', err)
     }
@@ -139,27 +156,43 @@ class DetectionLoop {
   /** 发送调试数据事件 */
   private sendDebugEvent(result: AnalysisResult, state: GameState): void {
     const window = getSettingsWindow()
-    window?.webContents.send(IPC_CHANNELS.EVENT_ANALYSIS_DEBUG, {
-      saturation: result.avgSaturation,
-      brightness: result.avgBrightness,
-      grayscale_ratio: result.grayscaleRatio,
-      center_white: result.centerWhiteRatio,
-      bottom_saturation: result.bottomSaturation,
-      bottom_colorful: result.bottomColorfulRatio,
-      game_state: state,
-    })
+    if (!window || window.isDestroyed()) return
+    try {
+      window.webContents.send(IPC_CHANNELS.EVENT_ANALYSIS_DEBUG, {
+        saturation: result.avgSaturation,
+        brightness: result.avgBrightness,
+        grayscale_ratio: result.grayscaleRatio,
+        center_white: result.centerWhiteRatio,
+        bottom_saturation: result.bottomSaturation,
+        bottom_colorful: result.bottomColorfulRatio,
+        spectator_id_visible: (result as any).spectatorIdVisible || 0,
+        game_state: state,
+      })
+    } catch (e) {
+      // 忽略发送失败（窗口可能正在关闭）
+    }
   }
 
   /** 发送检测状态变化事件 */
   private sendStatusEvent(running: boolean): void {
     const window = getSettingsWindow()
-    window?.webContents.send(IPC_CHANNELS.EVENT_DETECTION_STATUS_CHANGED, running)
+    if (!window || window.isDestroyed()) return
+    try {
+      window.webContents.send(IPC_CHANNELS.EVENT_DETECTION_STATUS_CHANGED, running)
+    } catch (e) {
+      // 忽略发送失败
+    }
   }
 
   /** 发送悬浮窗可见性事件 */
   private sendOverlayVisibility(visible: boolean): void {
     const window = getSettingsWindow()
-    window?.webContents.send(IPC_CHANNELS.EVENT_OVERLAY_VISIBILITY_CHANGED, visible)
+    if (!window || window.isDestroyed()) return
+    try {
+      window.webContents.send(IPC_CHANNELS.EVENT_OVERLAY_VISIBILITY_CHANGED, visible)
+    } catch (e) {
+      // 忽略发送失败
+    }
   }
 }
 

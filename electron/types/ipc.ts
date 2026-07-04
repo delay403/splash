@@ -7,7 +7,7 @@ export type GameState = 'Alive' | 'Dead' | 'Transitioning' | 'NoGame'
 export interface DetectionConfig {
   // 通用
   targetGame: string
-  intervalMs: number
+  detectIntervalMs: number
   deadConfirmFrames: number
   aliveConfirmFrames: number
   // 守望先锋 2 — 全屏饱和度/灰度/中心白色文字
@@ -15,9 +15,10 @@ export interface DetectionConfig {
   saturationAliveThreshold: number
   grayscaleRatioThreshold: number
   centerWhiteThreshold: number
-  // 无畏契约 — 底部技能图标区域检测
-  bottomColorRatioDead: number   // 底部区域彩色像素占比低于此值 → 死亡（图标消失）
-  bottomColorRatioAlive: number  // 底部区域彩色像素占比高于此值 → 存活（图标存在）
+  // 无畏契约 — 屏幕亮度骤降 + 观战ID坐标检测
+  brightnessDeadThreshold: number // 全屏平均亮度低于此值 → 死亡（屏幕变黑）
+  valorantSaturationThreshold: number // 饱和度阈值（低于此值判定为黑白画面）
+  valorantGrayscaleThreshold: number // 灰度比例阈值（高于此值判定为灰度画面）
 }
 
 /** 像素分析结果 */
@@ -30,6 +31,8 @@ export interface AnalysisResult {
   // 无畏契约指标（底部区域）
   bottomSaturation: number
   bottomColorfulRatio: number
+  // 无畏契约观战ID检测（特定坐标区域）
+  spectatorIdVisible: number  // 特定坐标区域非黑色像素占比，用于判断观战者ID是否存在
 }
 
 /** 调试数据（推送到前端） */
@@ -40,6 +43,7 @@ export interface AnalysisDebug {
   center_white: number
   bottom_saturation: number
   bottom_colorful: number
+  spectator_id_visible: number  // 无畏契约观战ID检测
   game_state: GameState
 }
 
@@ -57,7 +61,7 @@ export interface OverlayConfig {
 /** 快捷键配置 */
 export interface ShortcutConfig {
   toggleOverlay: string
-  toggleDetection: string
+  toggleDetect: string
 }
 
 /** 窗口状态 */
@@ -83,17 +87,19 @@ export interface AppDatabase {
 export const defaultDatabase: AppDatabase = {
   detection: {
     targetGame: 'overwatch2',
-    intervalMs: 1500,
-    deadConfirmFrames: 3,
-    aliveConfirmFrames: 2,
+    detectIntervalMs: 100,  // 毫秒级响应：100ms 检测间隔（10fps）
+    deadConfirmFrames: 1,  // 毫秒级响应：单帧确认，无延迟
+    aliveConfirmFrames: 1,  // 毫秒级响应：单帧确认，无延迟
     // 守望先锋 2
     saturationDeadThreshold: 0.15,
     saturationAliveThreshold: 0.25,
     grayscaleRatioThreshold: 0.7,
     centerWhiteThreshold: 0.05,
     // 无畏契约
-    bottomColorRatioDead: 0.05,
-    bottomColorRatioAlive: 0.12,
+    brightnessDeadThreshold: 0.18, // 全屏平均亮度低于此值判定为死亡（屏幕变黑）
+    valorantSaturationThreshold: 0.12, // 饱和度低于此值判定为黑白画面（死亡）
+    valorantGrayscaleThreshold: 0.80, // 灰度比例高于此值判定为灰度画面（死亡）
+    // 底部区域阈值已废弃，改用观战ID坐标检测
   },
   overlay: {
     douyinUrl: 'https://live.douyin.com/',
@@ -106,7 +112,7 @@ export const defaultDatabase: AppDatabase = {
   },
   shortcut: {
     toggleOverlay: 'CommandOrControl+Shift+O',
-    toggleDetection: 'CommandOrControl+Shift+D'
+    toggleDetect: 'CommandOrControl+Shift+D'
   },
   lastWindowState: {
     settings: { width: 900, height: 620, x: null, y: null },

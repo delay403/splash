@@ -6,7 +6,7 @@ import { ensureOverlayContent } from './overlay-content'
 import { detectionLoop } from './detection-loop'
 import type { ShortcutConfig } from '../types/ipc'
 
-type ShortcutAction = 'toggleOverlay' | 'toggleDetection'
+type ShortcutAction = 'toggleOverlay' | 'toggleDetect'
 
 /** 快捷键管理器 */
 class ShortcutManager {
@@ -16,7 +16,7 @@ class ShortcutManager {
   init(): void {
     const config = get('shortcut')
     this.registerAction('toggleOverlay', config.toggleOverlay)
-    this.registerAction('toggleDetection', config.toggleDetection)
+    this.registerAction('toggleDetect', config.toggleDetect)
   }
 
   /** 注册快捷键 */
@@ -77,7 +77,7 @@ class ShortcutManager {
         }
         break
       }
-      case 'toggleDetection': {
+      case 'toggleDetect': {
         if (detectionLoop.isRunning()) {
           detectionLoop.stop()
         } else {

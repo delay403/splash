@@ -41,15 +41,15 @@ export class StateMachine {
     const isDead = this.strategy.isDeadSignal(result, this.config)
     const isAlive = this.strategy.isAliveSignal(result, this.config)
 
+    console.log(`[state-machine] Frame: state=${this.currentState}, isDead=${isDead}, isAlive=${isAlive}, deadCount=${this.deadConfirmCount}, aliveCount=${this.aliveConfirmCount}`)
+
     if (isDead) {
       this.deadConfirmCount++
       this.aliveConfirmCount = 0
-    } else if (isAlive) {
+    } else {
+      // 屏幕不再全黑 → 复活信号（涵盖 isAlive=true 和灰区）
       this.aliveConfirmCount++
       this.deadConfirmCount = 0
-    } else {
-      this.deadConfirmCount = 0
-      this.aliveConfirmCount = 0
     }
 
     switch (this.currentState) {
@@ -58,7 +58,7 @@ export class StateMachine {
         if (this.deadConfirmCount >= this.config.deadConfirmFrames) {
           this.currentState = 'Dead'
           this.deadConfirmCount = 0
-          console.log('[state-machine] State changed: -> Dead')
+          console.log('[state-machine] State changed: Alive/NoGame -> Dead')
           return 'Dead'
         }
         break

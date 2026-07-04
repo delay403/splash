@@ -112,13 +112,8 @@ async function resetWindowPosition() {
       <h3 class="section-title">抖音直播间</h3>
       <p class="section-hint">输入直播间地址，首次打开需扫码登录，之后自动保持登录状态。</p>
       <div class="input-group">
-        <input
-          v-model="douyinUrl"
-          type="text"
-          class="text-input"
-          placeholder="https://live.douyin.com/123456789"
-          @keydown.enter="saveUrl"
-        />
+        <input v-model="douyinUrl" type="text" class="text-input" placeholder="https://live.douyin.com/123456789"
+          @keydown.enter="saveUrl" />
         <button class="btn btn-primary" @click="saveUrl">
           {{ urlSaved ? '✓ 已保存' : '保存' }}
         </button>
@@ -132,28 +127,16 @@ async function resetWindowPosition() {
 
       <div class="shortcut-row">
         <label class="shortcut-label">显隐悬浮窗</label>
-        <input
-          :value="recordingAction === 'toggleOverlay' ? '录制中...' : store.shortcuts.toggleOverlay"
-          class="shortcut-input"
-          :class="{ recording: recordingAction === 'toggleOverlay' }"
-          readonly
-          @focus="startRecording('toggleOverlay')"
-          @blur="stopRecording"
-          @keydown="onKeyDown"
-        />
+        <input :value="recordingAction === 'toggleOverlay' ? '录制中...' : store.shortcuts.toggleOverlay"
+          class="shortcut-input" :class="{ recording: recordingAction === 'toggleOverlay' }" readonly
+          @focus="startRecording('toggleOverlay')" @blur="stopRecording" @keydown="onKeyDown" />
       </div>
 
       <div class="shortcut-row">
         <label class="shortcut-label">启停检测</label>
-        <input
-          :value="recordingAction === 'toggleDetection' ? '录制中...' : store.shortcuts.toggleDetection"
-          class="shortcut-input"
-          :class="{ recording: recordingAction === 'toggleDetection' }"
-          readonly
-          @focus="startRecording('toggleDetection')"
-          @blur="stopRecording"
-          @keydown="onKeyDown"
-        />
+        <input :value="recordingAction === 'toggleDetect' ? '录制中...' : store.shortcuts.toggleDetect"
+          class="shortcut-input" :class="{ recording: recordingAction === 'toggleDetect' }" readonly
+          @focus="startRecording('toggleDetect')" @blur="stopRecording" @keydown="onKeyDown" />
       </div>
 
       <div v-if="shortcutSaved" class="inline-success">快捷键已保存</div>
@@ -308,12 +291,18 @@ async function resetWindowPosition() {
   background: #3b82f6;
   color: white;
 }
-.btn-primary:hover { background: #2563eb; }
+
+.btn-primary:hover {
+  background: #2563eb;
+}
 
 .btn-secondary {
   background: rgba(255, 255, 255, 0.08);
   color: #d1d5db;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
-.btn-secondary:hover { background: rgba(255, 255, 255, 0.12); }
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
 </style>
