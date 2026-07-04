@@ -6,10 +6,16 @@ directories:
 files:
   - out/**/*
   - package.json
+artifactName: ${productName}-${version}-setup.${ext}
 win:
   target:
     - nsis
   icon: electron/resources/icon.ico
 nsis:
   oneClick: false
+  perMachine: false
   allowToChangeInstallationDirectory: true
+  shortcutName: Splash
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  deleteAppDataOnUninstall: false
